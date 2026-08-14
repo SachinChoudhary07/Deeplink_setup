@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:args/command_runner.dart';
+import 'cli_style.dart';
 import 'config/deeplink_config.dart';
 import 'diagnostics/diagnostic.dart';
 import 'generators/association_generator.dart';
@@ -26,11 +27,11 @@ Future<int> runCli(List<String> args) async {
     return await runner.run(args) ?? 0;
   } on UsageException catch (e) {
     // ignore: avoid_print
-    print(e.message);
+    print(CliStyle.err(e.message));
     return 64;
   } catch (e) {
     // ignore: avoid_print
-    print('ERROR: $e');
+    print(CliStyle.err('$e'));
     return 1;
   }
 }
@@ -44,12 +45,12 @@ abstract class Base extends Command<int> {
   void output(List<Diagnostic> ds) {
     for (final d in ds) {
       // ignore: avoid_print
-      print(d);
+      print(CliStyle.diagnostic(d));
     }
     final e = ds.where((d) => d.isError).length;
     final w = ds.where((d) => d.isWarning).length;
     // ignore: avoid_print
-    print('\n$e error(s), $w warning(s).');
+    print('\n${CliStyle.summary(e, w)}');
   }
 }
 
@@ -69,7 +70,7 @@ class _Init extends Base {
     final domain = argResults?['domain'] as String?;
     if (domain == null || domain.isEmpty) {
       // ignore: avoid_print
-      print('ERROR: --domain is required for init.');
+      print(CliStyle.err('--domain is required for init.'));
       return 64;
     }
     final c = DeeplinkConfig(
@@ -82,31 +83,34 @@ class _Init extends Base {
     final file = File('deeplink_config.yaml');
     if (await file.exists()) {
       // ignore: avoid_print
-      print('Refusing to overwrite existing deeplink_config.yaml.');
+      print(
+          CliStyle.err('Refusing to overwrite existing deeplink_config.yaml.'));
       return 1;
     }
     await file.writeAsString(c.toYaml());
     // ignore: avoid_print
-    print('✓ Created deeplink_config.yaml');
+    print(CliStyle.ok('Created deeplink_config.yaml'));
     if (info.androidPackage != null) {
       // ignore: avoid_print
-      print('✓ Android package: ${info.androidPackage}');
+      print(CliStyle.ok('Android package: ${info.androidPackage}'));
     }
     if (info.androidSha256 != null) {
       // ignore: avoid_print
-      print('✓ Android SHA-256 detected');
+      print(CliStyle.ok('Android SHA-256 detected'));
     }
     if (info.iosBundleId != null) {
       // ignore: avoid_print
-      print('✓ iOS bundle ID: ${info.iosBundleId}');
+      print(CliStyle.ok('iOS bundle ID: ${info.iosBundleId}'));
     }
     if (info.iosTeamId != null) {
       // ignore: avoid_print
-      print('✓ iOS team ID: ${info.iosTeamId}');
+      print(CliStyle.ok('iOS team ID: ${info.iosTeamId}'));
     } else if (info.iosBundleId != null) {
       // ignore: avoid_print
       print(
-        '⚠ ios.team_id placeholder written as YOUR_TEAM_ID — replace it before production.',
+        CliStyle.warn(
+          'ios.team_id placeholder written as YOUR_TEAM_ID — replace it before production.',
+        ),
       );
     }
     if (info.diagnostics.isNotEmpty) {
@@ -135,20 +139,56 @@ class _Generate extends Base {
     );
     for (final f in files) {
       // ignore: avoid_print
-      print('✓ Generated ${f.path}');
+      print(CliStyle.ok('Generated ${f.path}'));
     }
     if (!files.any((f) => f.path.endsWith('assetlinks.json'))) {
       // ignore: avoid_print
       print(
-        'ℹ Skipped assetlinks.json (android.package and android.sha256 required).',
+        CliStyle.info(
+          'Skipped assetlinks.json (android.package and android.sha256 required).',
+        ),
       );
     }
     if (!files.any((f) => f.path.endsWith('apple-app-site-association'))) {
       // ignore: avoid_print
       print(
-        'ℹ Skipped apple-app-site-association (ios.bundle_id and ios.team_id required).',
+        CliStyle.info(
+          'Skipped apple-app-site-association (ios.bundle_id and ios.team_id required).',
+        ),
       );
     }
+
+    // ignore: avoid_print
+    print('');
+    // ignore: avoid_print
+    print(CliStyle.bold('Next step — host these on your website'));
+    // ignore: avoid_print
+    print(
+      CliStyle.dim(
+        'These files are for your server (backend / CDN / static host), not inside the app binary.',
+      ),
+    );
+    if (files.any((f) => f.path.endsWith('assetlinks.json'))) {
+      // ignore: avoid_print
+      print(
+        '  • Upload assetlinks.json → '
+        '${CliStyle.cyan('https://${c.domain}/.well-known/assetlinks.json')}',
+      );
+    }
+    if (files.any((f) => f.path.endsWith('apple-app-site-association'))) {
+      // ignore: avoid_print
+      print(
+        '  • Upload apple-app-site-association → '
+        '${CliStyle.cyan('https://${c.domain}/.well-known/apple-app-site-association')}',
+      );
+    }
+    // ignore: avoid_print
+    print(
+      CliStyle.dim(
+        'Serve over HTTPS with HTTP 200 and no redirects, then run: '
+        'deeplink_setup validate --live',
+      ),
+    );
     return 0;
   }
 }
@@ -171,15 +211,20 @@ class _Configure extends Base {
     );
     if (result.changed.isEmpty) {
       // ignore: avoid_print
-      print('No safe project configuration changes were necessary.');
+      print(CliStyle.info(
+          'No safe project configuration changes were necessary.'));
     } else {
       for (final f in result.changed) {
         // ignore: avoid_print
-        print('✓ Updated $f');
+        print(CliStyle.ok('Updated $f'));
       }
       // ignore: avoid_print
+      print('');
+      // ignore: avoid_print
       print(
-        'Backups use the .deeplink_setup.bak suffix. Review your git diff.',
+        CliStyle.info(
+          'Backups saved as *.deeplink_setup.bak — review your git diff, then delete .bak if OK.',
+        ),
       );
     }
     if (result.diagnostics.isNotEmpty) {
@@ -250,11 +295,22 @@ class _TestLive extends Base {
     final c = await DeeplinkConfig.load(config);
     final ds = await ValidationService().live(c);
     output(ds);
-    print('\nDevelopment endpoints:');
-    print('  https://${c.domain}/.well-known/assetlinks.json');
-    print('  https://${c.domain}/.well-known/apple-app-site-association');
+    // ignore: avoid_print
+    print('');
+    // ignore: avoid_print
+    print(CliStyle.bold('Development endpoints'));
+    // ignore: avoid_print
     print(
-      '\nThis checks the origin directly; it does not claim to bypass undocumented Apple CDN behavior.',
+        '  ${CliStyle.cyan('https://${c.domain}/.well-known/assetlinks.json')}');
+    // ignore: avoid_print
+    print(
+      '  ${CliStyle.cyan('https://${c.domain}/.well-known/apple-app-site-association')}',
+    );
+    // ignore: avoid_print
+    print(
+      CliStyle.dim(
+        'This checks the origin directly; it does not bypass Apple CDN cache.',
+      ),
     );
     return ds.any((d) => d.isError) ? 1 : 0;
   }
