@@ -1,151 +1,119 @@
 # deeplink_setup
 
-A Dart CLI for Android App Links and iOS Universal Links.
+Generate, validate, and diagnose **Android App Links** and **iOS Universal Links** from one Flutter CLI.
 
-## Implemented features
+Deep links break when the app, the website files, and Apple’s AASA cache disagree. `deeplink_setup` writes the `.well-known` files, edits Android/iOS project settings safely, and checks the live URLs — including when Apple is still serving an old AASA (this tool cannot clear that cache).
 
-- `generate`
-- `validate --local`
-- `validate --live`
-- `check-cdn`
-- `doctor`
-- `test-live`
-- Android Gradle `applicationId` detection
-- Android signing SHA-256 detection from `keytool`
-- iOS bundle identifier detection from Xcode project / Info.plist
-- safe AndroidManifest App Links on `.MainActivity` / launcher activity
-- safe iOS Associated Domains insertion
-- HTTPS/status/redirect/content-type checks
-- local/generated and origin/generated comparisons
-- origin/Apple CDN AASA comparison
-- deterministic association-file generation
-- structured diagnostics and exit codes
-- feature-by-feature documentation under `docs/`
-- AI-agent/Cursor implementation guide
+<p align="center">
+  <img src="screenshots/generate.png" alt="generate command output" width="720">
+</p>
 
-## Install in a Dart/Flutter project
-
-During development, use a path dependency:
+## Install
 
 ```yaml
 dev_dependencies:
-  deeplink_setup:
-    path: ../deeplink_setup_final
+  deeplink_setup: ^0.1.0
 ```
-
-For a published package, replace the path with the package version.
-
-Then:
 
 ```bash
 dart pub get
 dart run deeplink_setup:deeplink_setup --help
 ```
 
-## Initialize a project
+## Quick start
+
+Run from the Flutter app root (the folder with `pubspec.yaml`):
 
 ```bash
-dart run deeplink_setup:deeplink_setup init --domain example.com
-```
+dart run deeplink_setup:deeplink_setup init --domain your-domain.com
+# Review deeplink_config.yaml (set ios.team_id and release SHA if needed)
 
-`init` inspects common Flutter Android/iOS files and writes `deeplink_config.yaml`.
-
-Detection failures are **warnings**, not errors. `init` still writes the YAML (exit 0) so you can fill missing values by hand:
-
-- `keytool` missing from PATH / `JAVA_HOME` → paste `android.sha256`
-- debug keystore missing → same
-- iOS `DEVELOPMENT_TEAM` missing → paste `ios.team_id`
-
-On Windows the debug keystore is read from `%USERPROFILE%\.android\debug.keystore` (and `HOME` on macOS/Linux). Production/release fingerprints should be set in the YAML explicitly.
-
-Review the generated config before committing it.
-
-## Generate
-
-```bash
 dart run deeplink_setup:deeplink_setup generate
+dart run deeplink_setup:deeplink_setup configure
+dart run deeplink_setup:deeplink_setup validate --local
 ```
 
-This writes whichever association files the config can produce:
+Upload these files to your **website** (backend, CDN, or static host) — not into the app binary:
 
 ```text
-.well-known/assetlinks.json
-.well-known/apple-app-site-association
+https://your-domain.com/.well-known/assetlinks.json
+https://your-domain.com/.well-known/apple-app-site-association
 ```
 
-Android-only or iOS-only configs are valid. A platform is skipped until its required values are present.
-
-## Validate
+They must be public HTTPS, HTTP **200**, and **no redirects**. Then:
 
 ```bash
-dart run deeplink_setup:deeplink_setup validate --local
 dart run deeplink_setup:deeplink_setup validate --live
-```
-
-`--local` fails (exit 1) if config is incomplete or if generated `.well-known` files are missing or out of date.
-
-`--live` fetches `https://<domain>/.well-known/...` (no redirects) and compares that JSON to the output of `generate` from `deeplink_config.yaml`. It does not compare against local files or Apple CDN.
-
-## Apple CDN
-
-```bash
 dart run deeplink_setup:deeplink_setup check-cdn
-```
-
-This compares the public origin AASA with Apple's observable CDN representation.
-
-The tool does NOT clear Apple CDN cache and does not promise a fixed propagation time.
-
-## Doctor
-
-```bash
 dart run deeplink_setup:deeplink_setup doctor
 ```
 
-Runs local validation, live origin vs config, then origin vs Apple CDN. A CDN mismatch is a warning (cache delay); this CLI cannot clear Apple's cache.
+## Screenshots
 
-## Development testing
+**Live check shows the exact URL** when the file is missing on the server:
 
-`test-live` validates the origin directly and prints the URLs that should be used for development verification. It does not claim to bypass undocumented Apple CDN behavior.
+![validate --live HTTP 404 with Checked URL](screenshots/validate-live.png)
 
-```bash
-dart run deeplink_setup:deeplink_setup test-live
+**Apple CDN still serving an old AASA** is a warning, not a cache-clear button:
+
+![check-cdn origin vs Apple CDN mismatch](screenshots/check-cdn.png)
+
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| `init --domain example.com` | Scans the Flutter project and writes `deeplink_config.yaml`. Missing `keytool` or Team ID is a warning; the file is still created. |
+| `generate` | Writes `.well-known/assetlinks.json` and `apple-app-site-association`. Host these on the website. |
+| `configure` | Adds App Links on **MainActivity** and iOS Associated Domains. Backups: `*.deeplink_setup.bak`. |
+| `validate --local` | YAML + local files must match `generate`. Exit `1` if missing or stale. |
+| `validate --live` | Fetches the live origin (no redirects) and compares JSON to your config. |
+| `check-cdn` | Origin AASA vs Apple’s CDN copy. Mismatch = warning (possible cache delay). |
+| `test-live` | Live checks plus the URLs to open in a browser. |
+| `doctor` | Local + live + CDN in one command. |
+
+Exit codes: `0` ok (warnings allowed), `1` error, `64` bad usage.
+
+## Config
+
+`init` writes `deeplink_config.yaml`:
+
+```yaml
+domain: example.com
+
+android:
+  package: com.example.app
+  sha256: "AA:BB:CC:..."
+
+ios:
+  bundle_id: com.example.app
+  team_id: ABCDE12345
+
+paths:
+  - "/*"
 ```
 
-## Android / iOS project configuration
+| Field | Meaning |
+| --- | --- |
+| `domain` | Host that will serve `.well-known` (no `https://`). |
+| `android.package` | Gradle `applicationId`. |
+| `android.sha256` | Signing fingerprint. Debug may be detected; **Play/release SHA should be pasted**. |
+| `ios.bundle_id` | iOS bundle ID. |
+| `ios.team_id` | 10-character Apple Team ID (Xcode Signing, or Apple Developer → Membership). |
+| `paths` | URL paths the app should open (`/*` = all). |
 
-```bash
-dart run deeplink_setup:deeplink_setup configure
-```
+Android-only or iOS-only is valid. If `bundle_id` is set, `team_id` is required.
 
-This performs conservative, marker-based changes where possible:
+## Apple CDN
 
-- AndroidManifest: inserts an `android:autoVerify="true"` intent-filter on `.MainActivity` (or the launcher activity). It does **not** put the filter on `<application>`.
-- iOS: adds `applinks:` to an existing `.entitlements` file, or creates `ios/Runner/Runner.entitlements` and sets `CODE_SIGN_ENTITLEMENTS` in the Xcode project when that is safe.
+iOS often reads AASA from Apple’s CDN, not your origin. After you upload a new file, the CDN can stay stale. `check-cdn` reports that as a warning. **There is no API to flush Apple’s cache.** This package will not claim a 24h/48h SLA.
 
-Backups use the `.deeplink_setup.bak` suffix. Always review the git diff after running it.
-
-## Recommended real-project workflow
-
-```text
-1. init
-2. review deeplink_config.yaml
-3. generate
-4. configure
-5. validate --local
-6. deploy .well-known
-7. validate --live
-8. check-cdn
-9. doctor
-```
-
-For CI:
+## CI
 
 ```bash
 dart run deeplink_setup:deeplink_setup validate --local
 dart run deeplink_setup:deeplink_setup validate --live
 ```
 
-## Important limitation
+## License
 
-Apple's exact CDN invalidation behavior is not a controllable API exposed by this tool. A CDN/origin mismatch is reported as a diagnostic, not as a guaranteed timing prediction.
+MIT

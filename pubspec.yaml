@@ -1,10 +1,28 @@
 name: deeplink_setup
-description: Generate, validate, and diagnose Android App Links and iOS Universal Links.
+description: Generate, validate, and diagnose Android App Links and iOS Universal Links from one Flutter CLI.
 version: 0.1.0
-publish_to: none
+
+homepage: https://github.com/SachinChoudhary07/Deeplink_setup
+repository: https://github.com/SachinChoudhary07/Deeplink_setup
+issue_tracker: https://github.com/SachinChoudhary07/Deeplink_setup/issues
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
+
+topics:
+  - deeplink
+  - app-links
+  - universal-links
+  - flutter
+  - cli
+
+screenshots:
+  - description: Generate association files and hosting next steps
+    path: screenshots/generate.png
+  - description: Live validation shows the exact URL on HTTP 404
+    path: screenshots/validate-live.png
+  - description: Apple CDN vs origin AASA mismatch warning
+    path: screenshots/check-cdn.png
 
 dependencies:
   args: ^2.5.0
