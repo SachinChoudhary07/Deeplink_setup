@@ -105,12 +105,34 @@ class DeeplinkConfig {
       ..writeln()
       ..writeln('android:');
     if (androidPackage != null) b.writeln('  package: $androidPackage');
-    if (androidSha256 != null) b.writeln('  sha256: "$androidSha256"');
+    if (androidSha256 != null) {
+      b.writeln('  sha256: "$androidSha256"');
+    } else if (androidPackage != null) {
+      b
+        ..writeln(
+          '  # Paste debug/release SHA-256 from keytool or Play Console',
+        )
+        ..writeln('  sha256: YOUR_SHA256_FINGERPRINT');
+    }
     b
       ..writeln()
       ..writeln('ios:');
-    if (iosBundleId != null) b.writeln('  bundle_id: $iosBundleId');
-    if (iosTeamId != null) b.writeln('  team_id: $iosTeamId');
+    if (iosBundleId != null) {
+      b.writeln('  bundle_id: $iosBundleId');
+    } else if (iosTeamId != null) {
+      b
+        ..writeln('  # Bundle ID from Xcode / ios/Runner')
+        ..writeln('  bundle_id: YOUR_BUNDLE_ID');
+    }
+    if (iosTeamId != null) {
+      b.writeln('  team_id: $iosTeamId');
+    } else if (iosBundleId != null) {
+      b
+        ..writeln(
+          '  # 10-character Team ID: Apple Developer → Membership, or Xcode → Signing',
+        )
+        ..writeln('  team_id: YOUR_TEAM_ID');
+    }
     b
       ..writeln()
       ..writeln('paths:');

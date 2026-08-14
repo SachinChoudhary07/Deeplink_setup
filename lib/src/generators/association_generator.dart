@@ -51,7 +51,9 @@ class AssociationGenerator {
     }
     if (c.hasPartialIos) {
       throw const FormatException(
-        'iOS bundle_id and team_id must be provided together.',
+        'iOS bundle_id and team_id must be provided together. '
+        'Add ios.team_id in deeplink_config.yaml '
+        '(Apple Developer → Membership, or Xcode → Signing).',
       );
     }
     if (!c.hasCompleteAndroid && !c.hasCompleteIos) {

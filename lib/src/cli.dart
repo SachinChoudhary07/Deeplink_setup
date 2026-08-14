@@ -103,6 +103,11 @@ class _Init extends Base {
     if (info.iosTeamId != null) {
       // ignore: avoid_print
       print('✓ iOS team ID: ${info.iosTeamId}');
+    } else if (info.iosBundleId != null) {
+      // ignore: avoid_print
+      print(
+        '⚠ ios.team_id placeholder written as YOUR_TEAM_ID — replace it before production.',
+      );
     }
     if (info.diagnostics.isNotEmpty) {
       output(info.diagnostics);

@@ -78,4 +78,14 @@ android:
     expect(c.androidSha256, _canonicalSha);
     expect(c.hasCompleteAndroid, isTrue);
   });
+
+  test('toYaml writes team_id placeholder when bundle_id is known', () {
+    final yaml = DeeplinkConfig(
+      domain: 'example.com',
+      iosBundleId: 'com.example.app',
+    ).toYaml();
+    expect(yaml, contains('bundle_id: com.example.app'));
+    expect(yaml, contains('team_id: YOUR_TEAM_ID'));
+    expect(yaml, contains('Apple Developer'));
+  });
 }
