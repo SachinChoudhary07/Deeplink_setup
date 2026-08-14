@@ -83,14 +83,19 @@ class ValidationService {
 
         try {
           final response = await _fetch(httpClient, uri);
+          final checked = 'Checked: $uri';
           if (response.statusCode >= 300 && response.statusCode < 400) {
+            final location = response.headers['location'];
             out.add(
               Diagnostic(
                 severity: Severity.error,
                 code: 'HTTP_REDIRECT',
-                message: '$name returned HTTP ${response.statusCode}.',
+                message:
+                    '$name redirected (HTTP ${response.statusCode}). $checked'
+                    '${location == null ? '' : '\n  Redirected to: $location'}',
                 action:
-                    'Serve /.well-known files with HTTPS 200 and no redirects.',
+                    'Host the file at this exact URL with HTTPS 200 and no redirects. '
+                    'Google/Apple will not follow redirects for association files.',
               ),
             );
             continue;
@@ -100,9 +105,8 @@ class ValidationService {
               Diagnostic(
                 severity: Severity.error,
                 code: 'HTTP_STATUS',
-                message: '$name returned HTTP ${response.statusCode}.',
-                action:
-                    'Make the endpoint publicly reachable without redirects.',
+                message: _httpStatusMessage(name, response.statusCode, uri),
+                action: _httpStatusAction(name, response.statusCode),
               ),
             );
             continue;
@@ -114,7 +118,7 @@ class ValidationService {
               Diagnostic(
                 severity: Severity.warning,
                 code: 'CONTENT_TYPE',
-                message: '$name returned Content-Type "$type".',
+                message: '$name at $uri returned Content-Type "$type".',
                 action: 'Prefer application/json for the association files.',
               ),
             );
@@ -126,7 +130,9 @@ class ValidationService {
               Diagnostic(
                 severity: Severity.error,
                 code: 'INVALID_JSON',
-                message: '$name is not valid JSON.',
+                message: '$name at $uri is not valid JSON.',
+                action:
+                    'Re-upload the file from `deeplink_setup generate` without HTML wrapping.',
               ),
             );
             continue;
@@ -136,7 +142,8 @@ class ValidationService {
               Diagnostic(
                 severity: Severity.success,
                 code: 'ORIGIN_MATCH',
-                message: '$name on the origin matches generated config output.',
+                message:
+                    '$name on the origin matches generated config output.\n  $checked',
               ),
             );
           } else {
@@ -145,8 +152,9 @@ class ValidationService {
                 severity: Severity.error,
                 code: 'ORIGIN_MISMATCH',
                 message:
-                    '$name on the origin differs from generated config output.',
-                action: 'Upload the files from: deeplink_setup generate',
+                    '$name on the server does not match your deeplink_config.yaml.\n  $checked',
+                action:
+                    'Run `deeplink_setup generate`, then upload the new file to that URL via your backend/CDN.',
               ),
             );
           }
@@ -155,7 +163,9 @@ class ValidationService {
             Diagnostic(
               severity: Severity.error,
               code: 'NETWORK_ERROR',
-              message: 'Could not fetch $name: $e',
+              message: 'Could not reach $name at $uri\n  $e',
+              action:
+                  'Check domain spelling, DNS, and that HTTPS works in a browser.',
             ),
           );
         }
@@ -258,6 +268,30 @@ class ValidationService {
         ),
       );
     }
+  }
+
+  static String _httpStatusMessage(String name, int status, Uri uri) {
+    if (status == 404) {
+      return '$name was not found on the server (HTTP 404).\n'
+          '  Checked: $uri';
+    }
+    if (status == 401 || status == 403) {
+      return '$name is blocked (HTTP $status).\n'
+          '  Checked: $uri';
+    }
+    return '$name returned HTTP $status.\n'
+        '  Checked: $uri';
+  }
+
+  static String _httpStatusAction(String name, int status) {
+    if (status == 404) {
+      return 'Upload `.well-known/$name` from `deeplink_setup generate` to your '
+          'backend/CDN/static host. Open that URL in a browser — you should see JSON, not a 404 page.';
+    }
+    if (status == 401 || status == 403) {
+      return 'Make this URL public (no login). App Links / Universal Links cannot read private files.';
+    }
+    return 'Fix the server so this URL returns HTTPS 200 with JSON and no redirects.';
   }
 
   Future<void> _compareLocal(

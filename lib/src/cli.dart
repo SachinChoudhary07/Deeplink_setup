@@ -258,6 +258,19 @@ class _Validate extends Base {
     if (local) ds.addAll(await service.local(c));
     if (live) ds.addAll(await service.live(c));
     output(ds);
+    if (live && ds.any((d) => d.isError)) {
+      // ignore: avoid_print
+      print('');
+      // ignore: avoid_print
+      print(CliStyle.bold('Tip'));
+      // ignore: avoid_print
+      print(
+        CliStyle.dim(
+          '1) Run generate  2) Upload .well-known files to https://${c.domain}/  '
+          '3) Open the Checked: URL in a browser  4) Re-run validate --live',
+        ),
+      );
+    }
     return ds.any((d) => d.isError) ? 1 : 0;
   }
 }

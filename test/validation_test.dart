@@ -143,6 +143,22 @@ ios:
       );
     });
 
+    test('explains 404 with the exact URL that was checked', () async {
+      final c = _both();
+      final client = MockClient((request) async {
+        return http.Response('not found', 404);
+      });
+      final ds = await ValidationService().live(c, client: client);
+      final asset = ds.where((d) => d.code == 'HTTP_STATUS').first;
+      expect(asset.message, contains('HTTP 404'));
+      expect(
+        asset.message,
+        contains('https://example.com/.well-known/assetlinks.json'),
+      );
+      expect(asset.action, contains('Upload'));
+      expect(asset.action, contains('generate'));
+    });
+
     test('fails on redirects instead of following them', () async {
       final c = _both();
       final client = MockClient((request) async {
