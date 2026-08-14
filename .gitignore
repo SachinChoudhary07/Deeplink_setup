@@ -1,0 +1,10 @@
+.dart_tool/
+build/
+coverage/
+.idea/
+.vscode/
+*.iml
+pubspec.lock
+deeplink_config.yaml
+.well-known/
+*.deeplink_setup.bak
