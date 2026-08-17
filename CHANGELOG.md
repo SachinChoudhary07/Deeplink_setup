@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- Drop unused `xml` dependency so pub.dev can score latest stable dependencies.
+
 ## 0.1.0
 
 - Initial release: `init`, `generate`, `configure`, `validate`, `check-cdn`, `test-live`, `doctor`.
