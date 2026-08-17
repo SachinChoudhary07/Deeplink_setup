@@ -15,7 +15,9 @@ class CdnService {
           severity: Severity.info,
           code: 'CDN_SKIPPED',
           message:
-              'Apple CDN check skipped because iOS configuration is incomplete.',
+              'Skipped Apple CDN check — iOS Universal Links are not fully configured.',
+          action:
+              'Set ios.bundle_id and ios.team_id in deeplink_config.yaml. This check is only for iOS Universal Links.',
         ),
       ];
     }
@@ -41,19 +43,25 @@ class CdnService {
       final out = <Diagnostic>[];
       if (!originJson) {
         out.add(
-          const Diagnostic(
+          Diagnostic(
             severity: Severity.error,
             code: 'ORIGIN_AASA_INVALID_JSON',
-            message: 'Origin AASA is not valid JSON.',
+            message:
+                'Your website Universal Links file is not valid JSON.\n  Checked: $originUri',
+            action:
+                'Re-upload apple-app-site-association from `deeplink_setup generate`. Open the URL in a browser — you should see JSON, not HTML.',
           ),
         );
       }
       if (!cdnJson) {
         out.add(
-          const Diagnostic(
+          Diagnostic(
             severity: Severity.error,
             code: 'APPLE_CDN_INVALID_JSON',
-            message: 'Apple CDN AASA is not valid JSON.',
+            message:
+                'Apple CDN did not return valid JSON for Universal Links.\n  Checked: $cdnUri',
+            action:
+                'Confirm your website file is valid first (`validate --live`). Then wait and re-run check-cdn.',
           ),
         );
       }
@@ -61,20 +69,27 @@ class CdnService {
 
       if (ValidationService.jsonEquivalent(origin.body!, cdn.body!)) {
         out.add(
-          const Diagnostic(
+          Diagnostic(
             severity: Severity.success,
             code: 'APPLE_CDN_MATCH',
-            message: 'Apple CDN AASA matches origin.',
+            message: 'Apple CDN matches your website Universal Links file.\n'
+                '  Your server:  $originUri\n'
+                '  Apple CDN:    $cdnUri',
           ),
         );
       } else {
         out.add(
-          const Diagnostic(
+          Diagnostic(
             severity: Severity.warning,
             code: 'APPLE_CDN_ORIGIN_MISMATCH',
-            message: 'Apple CDN AASA differs from origin.',
+            message:
+                'Apple is still serving a different Universal Links file than your website.\n'
+                '  Your server:  $originUri\n'
+                '  Apple CDN:    $cdnUri',
             action:
-                'This may indicate propagation/cache delay. Re-check later; cache invalidation cannot be forced by this CLI.',
+                'Upload looks fine on your server. Apple’s CDN typically re-crawls in a few hours, '
+                'and often within 24 hours. In rare cases it can take several days (TTL). '
+                'You cannot clear this cache. Re-run check-cdn later.',
           ),
         );
       }
@@ -86,7 +101,7 @@ class CdnService {
 
   Future<_Fetched> _get(http.Client client, Uri uri,
       {required bool origin}) async {
-    final label = origin ? 'Origin AASA' : 'Apple CDN';
+    final who = origin ? 'Your website Universal Links file' : 'Apple CDN';
     try {
       final request = http.Request('GET', uri)..followRedirects = false;
       final response =
@@ -96,8 +111,11 @@ class CdnService {
           Diagnostic(
             severity: Severity.error,
             code: origin ? 'ORIGIN_AASA_REDIRECT' : 'APPLE_CDN_REDIRECT',
-            message: '$label returned HTTP ${response.statusCode}.',
-            action: 'AASA must be served with HTTPS 200 and no redirects.',
+            message:
+                '$who redirected (HTTP ${response.statusCode}).\n  Checked: $uri',
+            action: origin
+                ? 'Serve apple-app-site-association at this exact URL with HTTPS 200 and no redirects.'
+                : 'Apple CDN redirected. Re-run check-cdn later.',
           ),
         );
       }
@@ -106,7 +124,11 @@ class CdnService {
           Diagnostic(
             severity: Severity.error,
             code: origin ? 'ORIGIN_AASA_UNAVAILABLE' : 'APPLE_CDN_HTTP_STATUS',
-            message: '$label returned HTTP ${response.statusCode}.',
+            message:
+                '$who returned HTTP ${response.statusCode}.\n  Checked: $uri',
+            action: origin
+                ? 'Upload apple-app-site-association from `deeplink_setup generate` to this URL, then re-run check-cdn.'
+                : 'Apple may not have cached the file yet. Typical refresh is a few hours up to 24 hours; rarely several days (TTL). Re-run check-cdn later.',
           ),
         );
       }
@@ -116,8 +138,10 @@ class CdnService {
         Diagnostic(
           severity: Severity.error,
           code: origin ? 'ORIGIN_AASA_FETCH_FAILED' : 'APPLE_CDN_FETCH_FAILED',
-          message:
-              'Could not fetch ${origin ? 'origin AASA' : 'Apple CDN AASA'}: $e',
+          message: 'Could not reach $who.\n  Checked: $uri\n  $e',
+          action: origin
+              ? 'Check domain spelling, DNS, and HTTPS in a browser.'
+              : 'Network error talking to Apple. Retry check-cdn in a few minutes.',
         ),
       );
     }

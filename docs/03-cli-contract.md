@@ -26,6 +26,6 @@ Exit codes:
 
 `validate --live` compares the public origin association files to generated config output. Redirects and origin/config mismatches are errors.
 
-`check-cdn` compares origin AASA JSON to Apple's CDN copy. A mismatch is a warning (possible cache delay), not an error. Cache cannot be cleared by this CLI.
+`check-cdn` compares origin AASA JSON to Apple's CDN copy. A mismatch is a warning (possible cache delay), not an error. The CLI prints both URLs and notes a typical Apple CDN refresh of a few hours up to 24 hours (rarely several days, TTL). Cache cannot be cleared by this CLI.
 
 `doctor` runs local + live + CDN. Exit 1 only when there are errors.

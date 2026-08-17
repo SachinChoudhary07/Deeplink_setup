@@ -67,7 +67,7 @@ dart run deeplink_setup:deeplink_setup doctor
 | `configure` | Adds App Links on **MainActivity** and iOS Associated Domains. Backups: `*.deeplink_setup.bak`. |
 | `validate --local` | YAML + local files must match `generate`. Exit `1` if missing or stale. |
 | `validate --live` | Fetches the live origin (no redirects) and compares JSON to your config. |
-| `check-cdn` | Origin AASA vs Apple’s CDN copy. Mismatch = warning (possible cache delay). |
+| `check-cdn` | Origin AASA vs Apple’s CDN copy. Mismatch = warning; typical refresh a few hours–24h, rarely several days (TTL). |
 | `test-live` | Live checks plus the URLs to open in a browser. |
 | `doctor` | Local + live + CDN in one command. |
 
@@ -105,7 +105,7 @@ Android-only or iOS-only is valid. If `bundle_id` is set, `team_id` is required.
 
 ## Apple CDN
 
-iOS often reads AASA from Apple’s CDN, not your origin. After you upload a new file, the CDN can stay stale. `check-cdn` reports that as a warning. **There is no API to flush Apple’s cache.** This package will not claim a 24h/48h SLA.
+iOS often reads AASA from Apple’s CDN, not your origin. After you upload a new file, Apple typically re-crawls in a **few hours, often within 24 hours**. In rare cases it can take **several days** (TTL). `check-cdn` reports a mismatch as a warning and prints both URLs. **There is no API to flush Apple’s cache.** Re-run `check-cdn` later.
 
 ## CI
 

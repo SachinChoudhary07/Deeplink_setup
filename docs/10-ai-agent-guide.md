@@ -16,4 +16,4 @@ Then:
 
 Do not silently change public CLI behavior.
 
-Do not invent undocumented Apple CDN guarantees.
+Do not invent undocumented Apple CDN guarantees. Typical refresh may be described as a few hours up to 24 hours, rarely several days (TTL). Never present that as an official Apple SLA.

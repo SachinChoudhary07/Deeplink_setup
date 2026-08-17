@@ -58,7 +58,18 @@ ios:
         ds.where((d) => d.code == 'APPLE_CDN_ORIGIN_MISMATCH').single;
     expect(mismatch.isWarning, isTrue);
     expect(mismatch.isError, isFalse);
-    expect(mismatch.action, contains('cannot be forced'));
+    expect(mismatch.message, contains('Your server:'));
+    expect(
+      mismatch.message,
+      contains('https://example.com/.well-known/apple-app-site-association'),
+    );
+    expect(
+      mismatch.message,
+      contains('https://app-site-association.cdn-apple.com/a/v1/example.com'),
+    );
+    expect(mismatch.action, contains('24 hours'));
+    expect(mismatch.action, contains('several days'));
+    expect(mismatch.action, contains('cannot clear this cache'));
   });
 
   test('does not follow origin redirects', () async {
